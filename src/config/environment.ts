@@ -9,6 +9,7 @@ import {
   ghidraLanguageIdSchema,
 } from "./ghidraLanguageOverride.js";
 import { ghidraDisabledAnalyzersSchema } from "./ghidraDisabledAnalyzers.js";
+import { ghidraBridgeTransportSchema } from "./ghidraBridgeTransport.js";
 import {
   DEFAULT_GHIDRA_STARTUP_TIMEOUT_MS,
   DEFAULT_HOPPER_STARTUP_TIMEOUT_MS,
@@ -57,6 +58,7 @@ const environmentSchema = z.object({
   REA_GHIDRA_LANGUAGE_ID: ghidraLanguageIdSchema.optional(),
   REA_GHIDRA_COMPILER_SPEC_ID: ghidraCompilerSpecIdSchema.optional(),
   REA_GHIDRA_DISABLED_ANALYZERS: ghidraDisabledAnalyzersSchema.optional(),
+  REA_GHIDRA_BRIDGE_TRANSPORT: ghidraBridgeTransportSchema.optional(),
   REA_GHIDRA_SEED_FILE: z
     .string()
     .min(1)

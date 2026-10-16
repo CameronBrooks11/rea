@@ -89,10 +89,12 @@ import { nativeLoadImageObservationSchema } from "../domain/native/nativeLoadIma
 import {
   GHIDRA_PROVIDER_IDENTITY,
   healthLimitations,
+  loopbackTransportLimitations,
   windowsP0Limitations,
   limitationsFor,
 } from "./GhidraProviderCapabilities.js";
 import type { GhidraSessionError } from "./GhidraSessionError.js";
+import type { GhidraTransportKind } from "./GhidraTransport.js";
 import {
   ghidraPdbLimitations,
   type GhidraSessionInfo,
@@ -378,6 +380,20 @@ export const createGhidraProviderClient = (input: {
 }): AnalysisClient => {
   const { config, logger, clientFactory, target, context, installation } =
     input;
+  // Node path-based IPC cannot reach a Java AF_UNIX listener on Windows, so
+  // the selection is refused before any installation or native readiness check.
+  if (
+    installation.platform === "win32" &&
+    config.ghidraBridgeTransport === "unix-socket"
+  )
+    return unavailableClient(
+      new ProviderAdapterError("ghidra", "open_binary", {
+        diagnostics: {
+          reason:
+            "Windows Ghidra P0 serves only the authenticated-loopback-tcp bridge transport; unset REA_GHIDRA_BRIDGE_TRANSPORT or select authenticated-loopback-tcp.",
+        },
+      }),
+    );
   const prerequisites = ghidraClientPrerequisites(
     target,
     input.profile,
@@ -569,14 +585,25 @@ export const createGhidraProviderClient = (input: {
     ...ghidraMipsSharedLimitations(target),
     ...ghidraRiscvLimitations(target),
   ];
-  const providerLimitations =
+  // Windows P0 has only the loopback transport; POSIX keeps the Unix socket
+  // unless the environment selects loopback for hosts that refuse AF_UNIX.
+  const transport: GhidraTransportKind =
     installation.platform === "win32"
+      ? "authenticated-loopback-tcp"
+      : (config.ghidraBridgeTransport ?? "unix-socket");
+  const providerLimitations = [
+    ...(installation.platform === "win32"
       ? windowsP0Limitations
       : installation.platform === "darwin"
         ? [
             "macOS sessions require a matching executable Ghidra native decompiler; REA checks for it but does not build native components or change Gatekeeper quarantine state.",
           ]
-        : [];
+        : []),
+    ...(installation.platform !== "win32" &&
+    transport === "authenticated-loopback-tcp"
+      ? loopbackTransportLimitations
+      : []),
+  ];
   const client = clientFactory({
     startupTimeoutMs: config.ghidraStartupTimeoutMs,
     platform: installation.platform,
@@ -620,10 +647,7 @@ export const createGhidraProviderClient = (input: {
         ? (target.sourcePath ?? target.path)
         : target.path,
     targetSha256: target.sha256,
-    transport:
-      installation.platform === "win32"
-        ? "authenticated-loopback-tcp"
-        : "unix-socket",
+    transport,
     providerVersion: prerequisites.value.providerVersion,
     profileDigest: committedProfile.digest,
     ...(["dos-mz", "dos-com"].includes(target.format)

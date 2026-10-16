@@ -2,6 +2,7 @@ import type { LogLevel } from "../logger.js";
 import type { ReferenceSourcePolicy } from "../domain/referenceSourcePolicy.js";
 import type { AnalysisProviderSelector } from "../contracts/providerSelection.js";
 
+import type { GhidraBridgeTransport } from "./ghidraBridgeTransport.js";
 import type { GhidraLanguageOverride } from "./ghidraLanguageOverride.js";
 import type { McpInputSchemaProfile } from "./mcpInputSchemaProfile.js";
 
@@ -15,6 +16,7 @@ export interface AppConfig {
   readonly ghidraStartupTimeoutMs: number;
   readonly ghidraLanguageOverride?: GhidraLanguageOverride;
   readonly ghidraDisabledAnalyzers?: readonly string[];
+  readonly ghidraBridgeTransport?: GhidraBridgeTransport;
   readonly ghidraSeedFile?: string;
   readonly ghidraNativeAotJar?: string;
   readonly ilspyCmdPath: string | undefined;
